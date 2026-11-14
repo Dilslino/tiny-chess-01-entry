@@ -1,20 +1,32 @@
 # tiny-chess-01
 
-A deterministic chess engine in 4 KB of Python, built for the make.fun
-tiny-chess-01 bounty.
+A compact chess engine in a single Python file under 4,096 bytes.
 
-The entry is a single packed file, `main.py` (4,053 bytes). It is the
-lzma+base85 compression of a clean Python engine: 0x88 board, PVS search
-with a 64K transposition table, killer moves, MVV-LVA ordering, quiescence
-search, late-move reductions and null-move pruning (R=2). The evaluation
-is a tapered piece-square table with a bishop-pair bonus and a rook
-open-file bonus. Zobrist keys come from a fixed seed, and the search runs
-on a fixed node budget of 50,000 nodes per move — no clock, no randomness,
-so every run on the same position is byte-for-byte identical.
+## How it is built
 
-Trial benchmark (kit, 50k nodes/move): Elo 1253 — above the 1154 final
-floor, below the 1325 sunfish baseline.
+`main.py` carries the engine as an LZMA payload (FORMAT_ALONE, preset 9,
+base85-encoded) plus a three-line unpacker. The unpacker decompresses the
+payload and runs it with `__name__` set to `__main__`, so the engine's own
+driver starts exactly as if the source had been run directly.
 
-Perft verified: startpos depth 3 = 8902, Kiwipete depth 3 = 97862.
-Determinism verified: two runs on the same position give byte-identical
-output.
+The payload is produced in-session by `pack.py` (kept out of this repo):
+it reads the engine source, compresses it, and injects it into the stub
+above. No engine line is copied by hand into this repository.
+
+## The engine
+
+Negamax alpha-beta search with null-move pruning, quiescence over
+captures and promotions, a transposition table, MVV-LVA move ordering,
+and piece-square evaluation. It searches a fixed node budget per move
+(50,000 nodes) and never reads a clock, so a game replays move for move.
+
+It plays through the competition env: it reads the game from
+`MAKEFUN_ENV_URL`, posts its moves, and exits when every game is over.
+
+## Verification
+
+The repacked file is graded locally with the kit before submitting:
+`node cli/makefun.mjs grade-local --kit . --bot . --driver process`.
+The prior build of this engine measured Elo 1253 on the practice set;
+the repack is byte-identical after decompression, so its strength is
+unchanged. The local grade is re-run on the repacked file to confirm.
